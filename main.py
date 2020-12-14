@@ -24,6 +24,7 @@ offensive_words = [
     "cunt",
     "queer",
     "binter",
+    "khara",
     "pog"
 ]
 
@@ -47,6 +48,8 @@ async def on_ready():
         f'{guild.name}(id: {guild.id})'
     )
     await client.change_presence(status=discord.Status.do_not_disturb, activity=discord.Game('VRChatting'))
+    await on_catchup()
+
 
 @client.event
 async def on_message(message):
@@ -64,32 +67,24 @@ async def on_message(message):
         await on_link(message)
     elif message.content.startswith("!profile"):
         await on_profile(message)
-    elif message.content.startswith("!join"):
-        await join
-    elif message.content.startswith("!play"):
-        await play
-    elif message.content.startswith("!leave"):
-        await on_leave
 
 
-async def on_catchup(message):
-    message.
-    dm_channel = message.author.dm_channel
-    if dm_channel is None:
-        dm_channel = await message.author.create_dm()
-    mbed = discord.Embed(
-        colour=(discord.Colour.red()),
-        title='Welcome message!',
-        description=f'Welcome {member.mention}, to the Canadian VRChat discord group 🍁 ! \n '
-                    f'To ensure that you have a wonderful time,  Ill ask you to check out these few channels before starting: \n'
-                    f' 1) #rules-info \n'
-                    f' 2) #vrc-introduction \n'
-                    f' 3) #events \n'
-                    f' Once you checked out all of these go ahead and have fun OwO ill see you in VRChat!'
-    )
-    await dm_channel.send(mbed)
+async def on_catchup():
+    users_list_json = []
 
+    with open("users.json") as file:
+        users_list_json = json.load(file)
 
+    users_list = [x.id for x in guild.members]
+
+    for user_id in users_list:
+        if user_id not in users_list_json:
+            user = guild.get_member(user_id)
+            await on_member_join(user, offline=True)
+
+    with open("users.json","r+") as file:
+        file.seek(0)
+        json.dump(users_list, file)
 
 
 async def on_badwords(message):
@@ -128,7 +123,7 @@ async def on_kawaii(message):
 
 
 @client.event
-async def on_member_join(member):
+async def on_member_join(member, offline=False):
     mbed = discord.Embed(
         colour = (discord.Colour.red()),
         title = 'Welcome message!',
@@ -142,10 +137,15 @@ async def on_member_join(member):
     dm_channel = member.dm_channel
     if dm_channel is None:
         dm_channel = await member.create_dm()
+    if offline:
+        await dm_channel.send("Sorry I was offline, now that I am back online I would like to welcome you.")
     await dm_channel.send(embed=mbed)
 
     welcome_channel = guild.get_channel(WELCOME)
-    await welcome_channel.send(f"Welcome <@{member.id}> to the Canadian VRChat discord group 🍁 ! You are the {member_number()} member!")
+    if offline:
+        await welcome_channel.send(f"Welcome <@{member.id}> to the Canadian VRChat discord group 🍁 !")
+    else:
+        await welcome_channel.send(f"Welcome <@{member.id}> to the Canadian VRChat discord group 🍁 ! You are the {member_number()} member!")
 
 
 def member_number():
@@ -243,28 +243,5 @@ async def on_profile(message):
 
     await message.channel.send(embed=vrc_mbed)
 
-
-
-players = {}
-
-
-@client.command(pass_context=True)
-async def join(ctx):
-    channel = ctx.message.author.voice.voice_channel
-    await client.join_voice_channel(channel)
-
-@client.command(pass_context=True)
-async def on_leave(ctx):
-    server = ctx.message.server
-    voice_client = client.voice_client_in(server)
-    await voice_client.disconnect()
-
-@client.command(pass_context=True)
-async def play(ctx, url):
-    server = ctx.message.server
-    voice_client = client.voice_client_in(server)
-    player = await voice_client.create_ytdl_player(url)
-    players[server.id] = player
-    player.start()
 
 client.run(TOKEN)
